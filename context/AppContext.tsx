@@ -112,7 +112,7 @@ async function fetchUsers(){
                 Authorization: `Bearer ${token}`
             }
         })
-        setUsers(data)
+        setUsers(data?.users)
     }
     catch(error){
         console.log(error)
