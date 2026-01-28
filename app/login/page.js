@@ -8,7 +8,7 @@ import { useAppContext } from '@/context/AppContext'
 import { redirect } from 'next/navigation'
 
 export default function LoginPage() {
-  const {isAuth,setIsAuth,setUser,loading:userLoading}= useAppContext()
+  const {isAuth,setIsAuth,setUser,loading:userLoading,fetchChats,fetchUsers}= useAppContext()
   const [step, setStep] = useState('email') // 'email' or 'otp'
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
@@ -168,6 +168,8 @@ export default function LoginPage() {
         setIsLoading(false)
         setUser(response.user)
         setIsAuth(true)
+        fetchChats()
+        fetchUsers()
         
         // Show success and redirect
         setTimeout(() => {

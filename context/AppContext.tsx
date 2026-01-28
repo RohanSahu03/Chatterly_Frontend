@@ -40,7 +40,13 @@ export interface Chats{
  isAuth:boolean;
  setUser:React.Dispatch<React.SetStateAction<User | null>>;
  setIsAuth:React.Dispatch<React.SetStateAction<boolean>>;
-
+ logoutUser:()=>Promise<void>;
+ fetchUser:()=>Promise<void>;
+ fetchChats:()=>Promise<void>;
+ fetchUsers:()=>Promise<void>;
+ chats:Chats[] | null;
+ users:User[] | null;
+ setChats:React.Dispatch<React.SetStateAction<Chats[] | null>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,12 +102,30 @@ async function fetchChats(){
         console.log(error)
     }
 }
+
+const [users,setUsers]=useState<User[] | null>(null);
+async function fetchUsers(){
+    try{
+        const token = Cookies.get("auth_token");
+        const {data } = await axios.get(`${user_service}/api/v1/users`,{
+            headers:{
+                Authorization: `Bearer ${token}`
+            }
+        })
+        setUsers(data)
+    }
+    catch(error){
+        console.log(error)
+    }
+}
+
 useEffect(() => {
     fetchChats()
+    fetchUsers()
 },[])
 
     return (
-        <AppContext.Provider value={{user,loading,isAuth,setUser,setIsAuth}}>
+        <AppContext.Provider value={{user,loading,isAuth,setUser,setIsAuth,logoutUser,fetchUser,fetchChats,fetchUsers,chats,setChats,users}}>
             {children}
         </AppContext.Provider>
     )
