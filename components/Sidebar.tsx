@@ -4,7 +4,6 @@ import { useAppContext, User } from '@/context/AppContext'
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { Message } from '@/app/chat/page'
-import { log } from 'console'
 
 interface SidebarProps {
   selectedUser: string | null
@@ -39,12 +38,31 @@ function Sidebar({
 }: SidebarProps) {
 
   const [searchTerm, setSearchTerm] = useState('')
-  console.log('users', users)
+  const [userSearchTerm, setUserSearchTerm] = useState('')
 
   // Filter chats based on search
   const filteredChats = chats?.filter(chat => {
     const otherUser = chat?.users?.find((u: User) => u._id !== loggedInUser?._id)
     return otherUser?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  })
+
+  // Filter users for "All Users" modal (excluding logged in user and users already in chats)
+  const filteredUsers = users?.filter(user => {
+    // Exclude logged in user
+    if (user._id === loggedInUser?._id) return false
+    
+    // Filter by search term
+    if (userSearchTerm && !user.name.toLowerCase().includes(userSearchTerm.toLowerCase())) {
+      return false
+    }
+    
+    // Check if user already has a chat
+    const existingChat = chats?.find(chat => 
+      chat.users?.some((u: User) => u._id === user._id)
+    )
+    
+    // Return users without existing chats (or all users if you want to show all)
+    return true // Change to !existingChat if you only want to show users without existing chats
   })
 
   // Get last message for a chat - use latestMessage from API if messages array is null
@@ -91,6 +109,132 @@ function Sidebar({
           className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+
+      {/* All Users Modal/Overlay */}
+      {showAllUser && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setShowAllUser(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  New Chat
+                </h2>
+                <button
+                  onClick={() => setShowAllUser(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* User Search */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Users List */}
+              <div className="overflow-y-auto max-h-[60vh]">
+                {filteredUsers?.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400">
+                      {userSearchTerm ? 'No users found' : 'No users available'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredUsers?.map((user) => {
+                    // Check if user already has a chat
+                    const existingChat = chats?.find(chat => 
+                      chat.users?.some((u: User) => u._id === user._id)
+                    )
+
+                    return (
+                      <div
+                        key={user._id}
+                        onClick={() => {
+                          if (existingChat) {
+                            // If chat exists, select it
+                            const otherUser = existingChat.users?.find((u: User) => u._id === user._id)
+                            setSelectedUser(otherUser?._id || null)
+                          } else {
+                            // Otherwise, create a new chat
+                            createChat(user)
+                            setSelectedUser(user._id)
+                          }
+                          setShowAllUser(false)
+                          setSidebarOpen(false)
+                        }}
+                        className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                      >
+                        {/* User Avatar */}
+                        <div className="relative">
+                          <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                            {user?.avatar?.url ? (
+                              <Image
+                                src={user.avatar.url}
+                                alt={user.name}
+                                fill
+                                className="object-cover"
+                                sizes="40px"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-lg font-semibold text-gray-600 dark:text-gray-300">
+                                {user?.name?.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Online Status Indicator */}
+                          <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
+                        </div>
+
+                        {/* User Info */}
+                        <div className="flex-1 ml-3">
+                          <div className="flex justify-between items-center">
+                            <h3 className="font-medium text-gray-800 dark:text-gray-200">
+                              {user.name}
+                            </h3>
+                            {existingChat && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Existing chat
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Sidebar */}
