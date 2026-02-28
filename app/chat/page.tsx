@@ -6,6 +6,9 @@ import Sidebar from '@/components/Sidebar'
 import Image from 'next/image'
 import Cookies from 'js-cookie'
 import axios from 'axios'
+import ChatHeader from '@/components/ChatHeader'
+import ChatMessage from '@/components/ChatMessage'
+import MessageInput from '@/components/MessageInput'
 
 export interface Message {
   _id: string;
@@ -48,23 +51,23 @@ interface ChatWithUserData {
 }
 
 function ChatPage() {
-  const { 
-    isAuth, 
-    loading, 
-    logoutUser, 
-    chats, 
-    fetchChats, 
-    user: loggedInUser, 
-    setChats, 
-    users 
+  const {
+    isAuth,
+    loading,
+    logoutUser,
+    chats,
+    user: loggedInUser,
+    setChats,
+    fetchChats,
+    users
   } = useAppContext()
 
-  
+
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [message, setMessage] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [messages, setMessages] = useState<Message[] | null>(null)
-  const [user,setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [showAllUsers, setShowAllUsers] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
@@ -74,6 +77,20 @@ function ChatPage() {
   const handleLogout = () => {
     logoutUser()
     router.push('/login')
+  }
+  async function fetchChat() {
+    try {
+      const token = Cookies.get('auth_token')
+      const { data } = await axios.get(`${chat_service}/api/v1/message/${selectedUser}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setMessages(data.messages)
+      setUser(data.user)
+      await fetchChats()
+    } catch (error) {
+      console.log(error)
+      alert('Failed to fetch chats')
+    }
   }
 
   useEffect(() => {
@@ -89,10 +106,57 @@ function ChatPage() {
     }
   }, [isAuth])
 
+  useEffect(() => {
+    if (selectedUser) {
+      fetchChat()
+    }
+  }, [selectedUser])
+
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+const handleMessageSend = async(imageFile?:File | null)=>{
+
+  if(!message.trim() && !imageFile) return;
+  if(!selectedUser) return;
+  
+  //socket work
+  const token = Cookies.get('auth_token')
+  try{
+    const formData = new FormData()
+    formData.append('chatId',selectedUser)
+   if(message.trim()){
+    formData.append('text',message)
+   }
+   if(imageFile){
+    formData.append('image',imageFile)
+   }
+   const {data} = await axios.post(`${chat_service}/api/v1/message`,formData,{headers:{Authorization:`Bearer ${token}`,"Content-Type":"multipart/form-data"}})
+   setMessages((prev)=>{
+    const currentMessage = prev || [];
+    const messageExists = currentMessage.some((msg)=>msg._id === data.message._id)
+    if(!messageExists){
+      return [...currentMessage,data.message]
+    }
+    return currentMessage
+   })
+   setMessage('')
+   const displayText = imageFile ? 'image' : message
+   
+  }
+  catch(error: any){
+    console.log(error)
+    alert('Failed to send message')
+  }
+}
+
+  const handleTyping = (value:string)=>{
+    setMessage(value)
+    if(!selectedUser) return
+    //socket setup
+  }
 
 
 
@@ -104,25 +168,33 @@ function ChatPage() {
     )
   }
 
-  async function createChat(u:User) {
-    try{
+  async function createChat(u: User) {
+    try {
       const token = Cookies.get('auth_token')
-      const {data}= await axios.post(`${chat_service}/api/v1/chat/new`,{userId:loggedInUser?._id,otherUserId:u._id},{headers:{Authorization:`Bearer ${token}`}})
+      const { data } = await axios.post(`${chat_service}/api/v1/chat/new`, { userId: loggedInUser?._id, otherUserId: u._id }, { headers: { Authorization: `Bearer ${token}` } })
       setSelectedUser(data.chat)
-      setShowAllUser(false)
+      setShowAllUsers(false)
       await fetchChats()
 
-    }catch(error){
+    } catch (error) {
       console.log(error)
+      alert('Failed to create chat')
     }
 
   }
 
+
+
   return (
     <div className="min-h-screen flex ☐ bg-gray-900 text-white relative
 overflow-hidden">
-  <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} showAllUsers={showAllUsers} setShowAllUsers={setShowAllUsers} users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} loggedInUser={loggedInUser} chats={chats} handleLogout={handleLogout} />
-</div>
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} showAllUsers={showAllUsers} setShowAllUsers={setShowAllUsers} users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} loggedInUser={loggedInUser} chats={chats} handleLogout={handleLogout} createChat={createChat} />
+      <div className='flex-1 flex flex-col justify-between p-4 backderop-blur-xl bg-white/5 border-1 border-white/10'>
+        <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={isTyping} />
+        <ChatMessage selectedUser={selectedUser} loggedInUser={loggedInUser} messages={messages} />
+        <MessageInput selectedUser={selectedUser} message={message} setMesssage={handleTyping} handleMessageSend={handleMessageSend} />
+      </div>
+    </div>
   )
 }
 

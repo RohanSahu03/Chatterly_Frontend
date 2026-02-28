@@ -17,7 +17,7 @@ interface SidebarProps {
   users: User[] | null
   loggedInUser: User | null
   chats: any[] | null
-  // fetchChats: () => void
+  createChat: (user: User) => void
   handleLogout: () => void
 }
 
@@ -31,7 +31,8 @@ function Sidebar({
   users,
   loggedInUser,
   handleLogout,
-  chats
+  chats,
+  createChat
 
 }: SidebarProps) {
 
@@ -93,7 +94,9 @@ border-gray-700 text-white placeholder-gray-400 rounded-full"
                   ((u) => (
                     <button key={u._id} className="w-full text-left p-4
 rounded-1g border border-gray-700 ☐ hover:border-gray-600
-hover:bg-gray- 800 transition-colors rounded-lg">
+hover:bg-gray- 800 transition-colors rounded-lg"
+onClick={() => createChat(u)}
+>
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <UserCircle className="w-6 h-6 rounded-full text-gray-400" />
@@ -116,7 +119,7 @@ hover:bg-gray- 800 transition-colors rounded-lg">
           </div>) : (
             chats && chats.length > 0 ? <div className='space-y-2 overflow-y-auto h-full pb-4'>
               {chats.map((chat) => {
-                console.log(chat)
+             
                 const latestMessage = chat.chat.latestMessage;
                 const isSelected = selectedUser === chat.chat._id;
                 const isSentByMe = latestMessage?.sender === loggedInUser?._id;

@@ -69,7 +69,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
                     Authorization: `Bearer ${token}`
                 }
             })
-            setUser(data)
+            setUser(data?.user)
             setIsAuth(true)
             setLoading(false)
         }
