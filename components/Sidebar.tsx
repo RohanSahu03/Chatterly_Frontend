@@ -19,6 +19,7 @@ interface SidebarProps {
   chats: any[] | null
   createChat: (user: User) => void
   handleLogout: () => void
+  onlineUsers: string[];
 }
 
 function Sidebar({
@@ -32,7 +33,8 @@ function Sidebar({
   loggedInUser,
   handleLogout,
   chats,
-  createChat
+  createChat,
+  onlineUsers
 
 }: SidebarProps) {
 
@@ -95,19 +97,27 @@ border-gray-700 text-white placeholder-gray-400 rounded-full"
                     <button key={u._id} className="w-full text-left p-4
 rounded-1g border border-gray-700 ☐ hover:border-gray-600
 hover:bg-gray- 800 transition-colors rounded-lg"
-onClick={() => createChat(u)}
->
+                      onClick={() => createChat(u)}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <UserCircle className="w-6 h-6 rounded-full text-gray-400" />
-                        </div>
+                          {
 
-                        {/* online symbol dikhana hai */}
+                            onlineUsers.includes(u._id) && (
+                              <span className='absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-gray-900'></span>
+                            )
+                          }
+                        </div>
 
                         <div className="flex-1 min-w-0">
                           <span className="font-medium text-white">{u.name}</span>
                           <div className="text-xs text-gray-400 mt -0.5">
                             {/* to show online offline text */}
+                            {
+
+                              onlineUsers.includes(u._id) ? "Online" : "Offline"
+                            }
                           </div>
                         </div>
                       </div>
@@ -119,7 +129,7 @@ onClick={() => createChat(u)}
           </div>) : (
             chats && chats.length > 0 ? <div className='space-y-2 overflow-y-auto h-full pb-4'>
               {chats.map((chat) => {
-             
+
                 const latestMessage = chat.chat.latestMessage;
                 const isSelected = selectedUser === chat.chat._id;
                 const isSentByMe = latestMessage?.sender === loggedInUser?._id;

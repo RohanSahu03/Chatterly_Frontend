@@ -9,6 +9,7 @@ import axios from 'axios'
 import ChatHeader from '@/components/ChatHeader'
 import ChatMessage from '@/components/ChatMessage'
 import MessageInput from '@/components/MessageInput'
+import { SocketData } from '@/context/SocketContext'
 
 export interface Message {
   _id: string;
@@ -61,6 +62,11 @@ function ChatPage() {
     fetchChats,
     users
   } = useAppContext()
+
+  const {onlineUsers} = SocketData()
+
+  console.log(onlineUsers);
+  
 
 
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
@@ -188,7 +194,7 @@ const handleMessageSend = async(imageFile?:File | null)=>{
   return (
     <div className="min-h-screen flex ☐ bg-gray-900 text-white relative
 overflow-hidden">
-      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} showAllUsers={showAllUsers} setShowAllUsers={setShowAllUsers} users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} loggedInUser={loggedInUser} chats={chats} handleLogout={handleLogout} createChat={createChat} />
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} showAllUsers={showAllUsers} setShowAllUsers={setShowAllUsers} users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} loggedInUser={loggedInUser} chats={chats} handleLogout={handleLogout} createChat={createChat} onlineUsers={onlineUsers} />
       <div className='flex-1 flex flex-col justify-between p-4 backderop-blur-xl bg-white/5 border-1 border-white/10'>
         <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={isTyping} />
         <ChatMessage selectedUser={selectedUser} loggedInUser={loggedInUser} messages={messages} />
