@@ -65,8 +65,6 @@ function ChatPage() {
 
   const {onlineUsers} = SocketData()
 
-  console.log(onlineUsers);
-  
 
 
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
@@ -196,7 +194,7 @@ const handleMessageSend = async(imageFile?:File | null)=>{
 overflow-hidden">
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} showAllUsers={showAllUsers} setShowAllUsers={setShowAllUsers} users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} loggedInUser={loggedInUser} chats={chats} handleLogout={handleLogout} createChat={createChat} onlineUsers={onlineUsers} />
       <div className='flex-1 flex flex-col justify-between p-4 backderop-blur-xl bg-white/5 border-1 border-white/10'>
-        <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={isTyping} />
+        <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={isTyping} onlineUsers={onlineUsers} />
         <ChatMessage selectedUser={selectedUser} loggedInUser={loggedInUser} messages={messages} />
         <MessageInput selectedUser={selectedUser} message={message} setMesssage={handleTyping} handleMessageSend={handleMessageSend} />
       </div>

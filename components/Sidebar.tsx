@@ -150,6 +150,11 @@ items-center justify-center">
                         {/* online user ka work yaha hoga */}
 
                       </div>
+                      {
+                        onlineUsers.includes(chat?.user?.user?._id) && (
+                          <span className='absolute -top-0 -right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-gray-700'></span>
+                        )
+                      }
 
                     </div>
 
