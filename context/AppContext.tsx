@@ -5,8 +5,8 @@ import Cookies from "js-cookie";
 import axios from "axios";
 
 
-export const user_service = "http://localhost:5000"
-export const chat_service = "http://localhost:5002"
+export const user_service = "http://13.63.237.13:5000"
+export const chat_service = "http://13.63.237.13:5002"
 
 
 export interface User {
