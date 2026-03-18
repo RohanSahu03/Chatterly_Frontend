@@ -63,7 +63,7 @@ function ChatPage() {
     users
   } = useAppContext()
 
-  const {onlineUsers} = SocketData()
+  const { onlineUsers, socket } = SocketData()
 
 
 
@@ -113,64 +113,209 @@ function ChatPage() {
   useEffect(() => {
     if (selectedUser) {
       fetchChat()
+      setIsTyping(false)
+      resetUnseenCount(selectedUser)
+      socket?.emit("joinChat", selectedUser)
+      return () => {
+        socket?.emit("leaveChat", selectedUser)
+        setMessages(null)
+      }
     }
-  }, [selectedUser])
+  }, [selectedUser, socket])
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout)
+      }
+    }
+  }, [typingTimeout])
 
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-const handleMessageSend = async(imageFile?:File | null)=>{
 
-  if(!message.trim() && !imageFile) return;
-  if(!selectedUser) return;
-  
-  //socket work
-  const token = Cookies.get('auth_token')
-  try{
-    const formData = new FormData()
-    formData.append('chatId',selectedUser)
-   if(message.trim()){
-    formData.append('text',message)
-   }
-   if(imageFile){
-    formData.append('image',imageFile)
-   }
-   const {data} = await axios.post(`${chat_service}/api/v1/message`,formData,{headers:{Authorization:`Bearer ${token}`,"Content-Type":"multipart/form-data"}})
-   setMessages((prev)=>{
-    const currentMessage = prev || [];
-    const messageExists = currentMessage.some((msg)=>msg._id === data.message._id)
-    if(!messageExists){
-      return [...currentMessage,data.message]
+  useEffect(() => {
+    if (!socket) return
+    socket.on("newMessage", (message) => {
+      if (message.chatId === selectedUser) {
+        setMessages((prev) => {
+          const currentMessage = prev || [];
+          const messageExists = currentMessage.some((msg) => msg._id === message._id)
+          if (!messageExists) {
+            return [...currentMessage, message]
+          }
+          return currentMessage
+        })
+        moveToTop(message.chatId, message, false)
+      }
+      else {
+        moveToTop(message.chatId, message, true)
+      }
+    })
+
+    socket.on("messageSeen", (data) => {
+      if (data.chatId === selectedUser) {
+        setMessages((prev) => {
+          if (!prev) return null;
+          return prev.map((msg) => {
+            if (msg.sender === loggedInUser?._id && data.messageIds && data.messageIds.includes(msg._id)) {
+              return { ...msg, seen: true, seenAt: new Date().toISOString() }
+            }
+            else if (msg.sender === loggedInUser?._id && !data.messageIds) {
+              return { ...msg, seen: true, seenAt: new Date().toISOString() }
+            }
+            return msg;
+          })
+        })
+        moveToTop(data.chatId, data.message, false)
+      }
+    })
+
+    socket.on("userTyping", (data) => {
+      if (data.chatId === selectedUser && data.userId !== loggedInUser?._id) {
+        setIsTyping(true)
+      }
+    })
+    socket.on("userStopTyping", (data) => {
+      if (data.chatId === selectedUser && data.userId !== loggedInUser?._id) {
+        setIsTyping(false)
+      }
+    })
+    return () => {
+      socket?.off("newMessage")
+      socket?.off("messageSeen")
+      socket?.off("userTyping")
+      socket?.off("userStopTyping")
     }
-    return currentMessage
-   })
-   setMessage('')
-   const displayText = imageFile ? 'image' : message
-   
-  }
-  catch(error: any){
-    console.log(error)
-    alert('Failed to send message')
-  }
-}
+  }, [socket, selectedUser, setChats, loggedInUser?._id])
 
-  const handleTyping = (value:string)=>{
+  const handleMessageSend = async (imageFile?: File | null) => {
+
+    if (!message.trim() && !imageFile) return;
+    if (!selectedUser) return;
+
+    //socket work
+
+    if (typingTimeout) {
+      clearTimeout(typingTimeout)
+      setTypingTimeout(null)
+
+    }
+
+    socket?.emit("stopTyping", {
+      chatId: selectedUser,
+      userId: loggedInUser?._id,
+    })
+
+    const token = Cookies.get('auth_token')
+    try {
+      const formData = new FormData()
+      formData.append('chatId', selectedUser)
+      if (message.trim()) {
+        formData.append('text', message)
+      }
+      if (imageFile) {
+        formData.append('image', imageFile)
+      }
+      const { data } = await axios.post(`${chat_service}/api/v1/message`, formData, { headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" } })
+      setMessages((prev) => {
+        const currentMessage = prev || [];
+        const messageExists = currentMessage.some((msg) => msg._id === data.message._id)
+        if (!messageExists) {
+          return [...currentMessage, data.message]
+        }
+        return currentMessage
+      })
+      setMessage('')
+      const displayText = imageFile ? 'image' : message
+      moveToTop(selectedUser!, {
+        text: displayText,
+        sender: data.sender
+      },
+        false
+      )
+
+    }
+    catch (error: any) {
+      console.log(error)
+      alert('Failed to send message')
+    }
+  }
+
+  const handleTyping = (value: string) => {
     setMessage(value)
-    if(!selectedUser) return
+    if (!selectedUser || !socket) return
     //socket setup
+
+    if (value.trim()) {
+      socket.emit("typing", {
+        chatId: selectedUser,
+        userId: loggedInUser?._id,
+      })
+      if (typingTimeout) {
+        clearTimeout(typingTimeout)
+      }
+      const timeout = setTimeout(() => {
+        socket.emit("stopTyping", {
+          chatId: selectedUser,
+          userId: loggedInUser?._id,
+        })
+      }, 2000)
+      setTypingTimeout(timeout)
+
+    }
   }
 
+  const moveToTop = (chatId: string, newMessage: any, updatedUnseenCount = true) => {
+    setChats((prev) => {
+      if (!prev) return []
 
+      const updatedChats = [...prev]
+      const chatIndex = updatedChats.findIndex((chat) => chat.chat._id === chatId)
+      if (chatIndex !== -1) {
+        const [moveChat] = updatedChats.splice(chatIndex, 1)
+        const updatedChat = {
+          ...moveChat,
+          chat: {
+            ...moveChat.chat,
+            latestMessage: {
+              text: newMessage?.text,
+              sender: newMessage?.sender,
+            },
+            updatedAt: new Date().toString(),
+            unseenCount: updatedUnseenCount && newMessage.sender !== loggedInUser?._id ? (moveChat.chat.unseenCount || 0) + 1 : moveChat.chat.unseenCount || 0,
+          }
 
-  if (loading) {
-    return (
-      <div className='flex items-center justify-center h-screen'>
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
+        }
+        updatedChats.unshift(updatedChat)
+
+      }
+      return updatedChats
+    }
     )
   }
+
+  const resetUnseenCount = (chatId: string) => {
+    setChats((prev) => {
+      if (!prev) return null;
+      return prev.map((chat) => {
+        if (chat.chat._id === chatId) {
+          return {
+            ...chat,
+            chat: {
+              ...chat.chat,
+              unseenCount: 0
+            }
+          }
+        }
+        return chat
+      })
+    })
+  }
+
 
   async function createChat(u: User) {
     try {
@@ -187,7 +332,13 @@ const handleMessageSend = async(imageFile?:File | null)=>{
 
   }
 
-
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center h-screen'>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex ☐ bg-gray-900 text-white relative
